@@ -28,7 +28,7 @@ vc_wrapper = SeedVCWrapper()
 def post_process_file(vc_wave, sr: int):
     output_file = io.BytesIO()
     try:
-        target_loudness = -23.0  # 设置目标 LUFS 声度
+        target_loudness = -26.0  # 设置目标 LUFS 声度
         np_wave = eq(vc_wave, sr)
         np_wave, ori_loudness = loudnorm(np_wave, sr, target_loudness)
         logger.info(f"Original loudness: {ori_loudness:.2f} LUFS. normalized to {target_loudness:.2f} LUFS")
@@ -129,7 +129,7 @@ async def svc_file(
 
     try: 
         # 处理上传的文件
-        vc_generator = voice_conversion(
+        vc_generator = vc_wrapper.convert_voice(
             temp_file_src.name, 
             temp_file_ref.name,
             diffusion_steps=int(steps),
