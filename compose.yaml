@@ -51,18 +51,18 @@ services:
             - driver: nvidia
               device_ids: [ "1" ]
               capabilities: [ gpu ]
-  svc-api-3:
-    container_name: 'svc-api-3'
-    extends: svc-api-1
-    ports: !override
-      - "7002:7856"
-    deploy: !override
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: [ "2" ]
-              capabilities: [ gpu ]
+  # svc-api-3:
+  #   container_name: 'svc-api-3'
+  #   extends: svc-api-1
+  #   ports: !override
+  #     - "7002:7856"
+  #   deploy: !override
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: [ "2" ]
+  #             capabilities: [ gpu ]
 volumes:
   TTD-Data:
     external: true
