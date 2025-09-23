@@ -24,4 +24,9 @@ RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
 # Copy the rest of the application
 COPY . /app
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=1m --retries=3 \
+    CMD curl -f http://localhost:7856/health || exit 1
+
+EXPOSE 7856
+    
 CMD [ "python", "api2.py" ]
