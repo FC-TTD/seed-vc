@@ -39,18 +39,18 @@ services:
             - driver: nvidia
               device_ids: [ "0" ]
               capabilities: [ gpu ]
-  svc-api-2:
-    container_name: 'svc-api-2'
-    extends: svc-api-1
-    ports: !override
-      - "7001:7856"
-    deploy: !override
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: [ "1" ]
-              capabilities: [ gpu ]
+  # svc-api-2:
+  #   container_name: 'svc-api-2'
+  #   extends: svc-api-1
+  #   ports: !override
+  #     - "7001:7856"
+  #   deploy: !override
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: [ "1" ]
+  #             capabilities: [ gpu ]
   # svc-api-3:
   #   container_name: 'svc-api-3'
   #   extends: svc-api-1
