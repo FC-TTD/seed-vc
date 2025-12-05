@@ -29,7 +29,7 @@ services:
     shm_size: 16G
     stdin_open: true
     tty: true
-    restart: unless-stopped
+    restart: always
     ports:
       - "7000:7856"
     deploy:
