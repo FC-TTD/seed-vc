@@ -46,6 +46,10 @@ def get_svc_voice(actor, voice):
 
 app = FastAPI()
 
+@app.get("/")
+async def root():
+    return {"message": "欢迎使用 SeedVC API"}
+
 @app.post("/infer_vc")
 async def infer_vc(
     actor: str,
