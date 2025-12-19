@@ -13,7 +13,7 @@ import uvicorn
 from fastapi import File, HTTPException, UploadFile, FastAPI
 from fastapi.responses import StreamingResponse
 
-from modules.postprocess import loudnorm, eq
+from ttd_fastapi_utils import setup_cuda_health, apply_postprocess
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,9 +29,10 @@ def post_process_file(vc_wave, sr: int):
     output_file = io.BytesIO()
     try:
         target_loudness = -26.0  # 设置目标 LUFS 声度
-        np_wave = eq(vc_wave, sr)
-        np_wave, ori_loudness = loudnorm(np_wave, sr, target_loudness)
-        logger.info(f"Original loudness: {ori_loudness:.2f} LUFS. normalized to {target_loudness:.2f} LUFS")
+        # np_wave = eq(vc_wave, sr)
+        # np_wave, ori_loudness = loudnorm(np_wave, sr, target_loudness)
+        np_wave = apply_postprocess(vc_wave, sr, target_loudness=target_loudness)
+        logger.info(f"LUFS normalized to: {target_loudness:.2f}")
     except Exception as e:
         logger.warning(f"Post-processing failed with error: {e}")
     sf.write(output_file, np_wave, sr, format="wav")
@@ -45,10 +46,7 @@ def get_svc_voice(actor, voice):
     return vc_ref_file
 
 app = FastAPI()
-
-@app.get("/")
-async def root():
-    return {"message": "欢迎使用 SeedVC API"}
+setup_cuda_health(app)
 
 @app.post("/infer_vc")
 async def infer_vc(
