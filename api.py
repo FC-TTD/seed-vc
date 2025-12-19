@@ -26,7 +26,7 @@ from modules.audio import mel_spectrogram
 from modules.bigvgan import bigvgan
 from modules.campplus.DTDNN import CAMPPlus
 from modules.commons import build_model, load_checkpoint, recursive_munch
-from modules.postprocess import loudnorm, eq
+from ttd_fastapi_utils import loudnorm, eq
 
 logging.basicConfig(level=logging.INFO)
 
