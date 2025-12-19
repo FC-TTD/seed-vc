@@ -8,6 +8,9 @@ import tempfile
 import time
 import warnings
 
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 import soundfile as sf
 import uvicorn
 from fastapi import File, HTTPException, UploadFile, FastAPI
@@ -23,7 +26,19 @@ VC_ROOT = "/data/ttd/seed-vc/"
 os.environ["HF_HUB_CACHE"] = os.path.join(VC_ROOT, "./checkpoints/hf_cache")
 
 from seed_vc_wrapper import SeedVCWrapper
-vc_wrapper = SeedVCWrapper()
+vc_wrapper = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    global vc_wrapper
+    try:
+        vc_wrapper = SeedVCWrapper()
+    except Exception as e:
+        logger.exception("SeedVCWrapper init failed")
+        raise RuntimeError("SeedVCWrapper init failed") from e
+    yield
+    vc_wrapper = None
 
 def post_process_file(vc_wave, sr: int):
     output_file = io.BytesIO()
@@ -45,7 +60,7 @@ def get_svc_voice(actor, voice):
         raise FileNotFoundError(f"Voice file not found: {vc_ref_file}")
     return vc_ref_file
 
-app = FastAPI()
+app = FastAPI(title="Seed-VC API", version="2.0.0", lifespan=lifespan)
 setup_cuda_health(app)
 
 @app.post("/infer_vc")
