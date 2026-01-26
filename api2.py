@@ -16,7 +16,7 @@ import uvicorn
 from fastapi import File, HTTPException, UploadFile, FastAPI
 from fastapi.responses import StreamingResponse
 
-from ttd_fastapi_utils import setup_cuda_health, apply_postprocess
+from ttd_fastapi_utils import setup_cuda_health, apply_postprocess, SmartModel
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,19 +26,25 @@ VC_ROOT = "/data/ttd/seed-vc/"
 os.environ["HF_HUB_CACHE"] = os.path.join(VC_ROOT, "./checkpoints/hf_cache")
 
 from seed_vc_wrapper import SeedVCWrapper
-vc_wrapper = None
+vc_wrapper_manager = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global vc_wrapper
+    global vc_wrapper_manager
+    def loader():
+        return SeedVCWrapper()
+    
     try:
-        vc_wrapper = SeedVCWrapper()
+        # Default 2h timeout
+        vc_wrapper_manager = SmartModel(loader, timeout_seconds=7200)
     except Exception as e:
         logger.exception("SeedVCWrapper init failed")
         raise RuntimeError("SeedVCWrapper init failed") from e
     yield
-    vc_wrapper = None
+    if vc_wrapper_manager:
+        vc_wrapper_manager.stop()
+    vc_wrapper_manager = None
 
 def post_process_file(vc_wave, sr: int):
     output_file = io.BytesIO()
@@ -88,6 +94,10 @@ async def infer_vc(
             logger.info(
                 "recieved vc request. actor: %s, size: %d", actor, len(contents)
             )
+            
+            # Get model instance
+            vc_wrapper = vc_wrapper_manager.get()
+            
             # 调用 vc 方法
             vc_generator = vc_wrapper.convert_voice(
                 temp_file.name,
@@ -145,6 +155,9 @@ async def svc_file(
         temp_file_ref.flush()  # 确保数据写入文件
 
     try: 
+        # Get model instance
+        vc_wrapper = vc_wrapper_manager.get()
+        
         # 处理上传的文件
         vc_generator = vc_wrapper.convert_voice(
             temp_file_src.name, 
