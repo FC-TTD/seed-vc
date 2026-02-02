@@ -27,7 +27,7 @@ RUN python3 -m pip install --no-cache-dir 'ttd_fastapi_utils>=0.2.4' --extra-ind
 COPY . /app
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=1m --retries=3 \
-    CMD curl -f http://localhost:7856/health || exit 1
+    CMD aria2c --dry-run --no-conf --log-level=error http://localhost:7856/health || exit 1
 
 EXPOSE 7856
     
