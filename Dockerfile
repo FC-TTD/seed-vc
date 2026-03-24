@@ -9,7 +9,7 @@ LABEL description="Docker image for seed-vc"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends tzdata ffmpeg libsox-dev vim parallel aria2 git git-lfs locales && \
+    apt-get install -y --no-install-recommends tzdata tini ffmpeg libsox-dev vim parallel aria2 git git-lfs locales && \
     git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
@@ -30,5 +30,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=1m --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:7856/health', timeout=3)" || exit 1
 
 EXPOSE 7856
-    
+
+ENTRYPOINT ["tini", "--"]
 CMD [ "python", "api2.py" ]
