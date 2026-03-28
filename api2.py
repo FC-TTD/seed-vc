@@ -26,6 +26,8 @@ VC_ROOT = "/data/ttd/seed-vc/"
 os.environ["HF_HUB_CACHE"] = os.path.join(VC_ROOT, "./checkpoints/hf_cache")
 
 from seed_vc_wrapper import SeedVCWrapper
+from postprocess_api import router as postprocess_router
+
 vc_wrapper_manager = None
 
 
@@ -67,6 +69,7 @@ def get_svc_voice(actor, voice):
     return vc_ref_file
 
 app = FastAPI(title="Seed-VC API", version="2.0.0", lifespan=lifespan)
+app.include_router(postprocess_router, prefix="/postprocess", tags=["postprocess"])
 setup_cuda_health(app)
 
 @app.post("/infer_vc")
