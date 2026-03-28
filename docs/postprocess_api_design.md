@@ -80,7 +80,7 @@ IntercomParams
 - 描述参数结构
 - 为后续真正暴露专用端点提供基础
 
-其中有一层额外兼容语义：
+其中有一层额外业务语义：
 
 - `use_standard_chain`
 - `target_loudness`
@@ -88,6 +88,11 @@ IntercomParams
 - `enable_eq`
 
 这些字段在 `0.3.1` 起不再是 preset 库函数自身的参数，而是由我们的 API 包装层先消费，再决定是否调用 `postprocess.apply_postprocess()`。
+
+在业务语义上：
+
+- `use_standard_chain` / `post_process` 是标准链总开关
+- 只有总开关开启时，`target_loudness` / `lufs`、`trim_silence`、`enable_eq` 才生效
 
 `0.3.2` 进一步新增了 `preset_metadata()`，因此 `/presets` 现在会把上游 metadata 一并返回，避免 preset 摘要、推荐控制项和推荐标准链信息继续手写漂移。
 
@@ -182,8 +187,9 @@ UploadFile
 
 - `postprocess_api.py` 是独立路由能力
 - `/infer_vc`、`/svc_file` 仍使用主流程里的基础后处理
-- VC 路由正式暴露 `lufs` 作为响度参数，并兼容 `loudnorm` 旧别名
-- `postprocess/apply-generic` 兼容 `lufs` 作为 `target_loudness` 的别名
+- VC 路由正式暴露 `lufs` 作为响度参数
+- VC 路由用 `post_process` 作为标准链总开关
+- `postprocess/apply-generic` 支持 `lufs` 并映射到 `target_loudness`
 - 两者目前并未在 API 层打通成统一配置入口
 
 ## 9. 性能与实现取舍
