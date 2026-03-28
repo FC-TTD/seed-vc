@@ -40,7 +40,7 @@ app.include_router(postprocess_router, prefix="/postprocess", tags=["postprocess
 ### 4.1 已声明端点
 
 | 类型 | 路径 | 说明 |
-|------|------|------|
+| ------ | ------ | ------ |
 | 元数据 | `GET /postprocess/presets` | 返回 preset 名称、别名、描述、metadata |
 | 通用 | `POST /postprocess/apply-generic/{preset_name}` | 统一入口 |
 | 专用 | `POST /postprocess/apply/telephone` 等 | 代码中已声明 |
@@ -96,7 +96,7 @@ IntercomParams
 当前端点统一采用 multipart form-data，参数暴露方式如下：
 
 | 参数 | 位置 | 说明 |
-|------|------|------|
+| ------ | ------ | ------ |
 | `preset_name` | path | preset 名称 |
 | `file` | multipart form-data | 上传音频文件 |
 | `target_loudness` | form | 默认 `-23.0` |
@@ -149,7 +149,7 @@ UploadFile
 ### 7.1 通用端点已实现的处理
 
 | 阶段 | 行为 |
-|------|------|
+| ------ | ------ |
 | 文件类型检查失败 | 返回 400 |
 | `soundfile` 读取失败 | 返回 400 |
 | `apply_preset()` 抛出 `ValueError` | 返回 400 |
