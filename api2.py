@@ -76,8 +76,8 @@ async def infer_vc(
     voice: str,
     steps: str = "50",
     post_process: bool = True,
-    lufs: float = -23.0,
-    loudnorm: float | None = None,
+    lufs: float = Form(-23.0),
+    loudnorm: float | None = Form(None),
     file: UploadFile = File(...)
 ):
     time_start = time.time()

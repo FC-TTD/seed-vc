@@ -116,7 +116,7 @@ POST /postprocess/apply-generic/{preset_name}
 当前代码中声明了以下专用路由：
 
 | 端点 | 描述 |
-|------|------|
+| ------ | ------ |
 | `POST /postprocess/apply/telephone` | 电话音 |
 | `POST /postprocess/apply/smart_assistant` | 智能语音 |
 | `POST /postprocess/apply/inner_monologue` | 心声独白 |
@@ -188,7 +188,7 @@ with open("output.wav", "wb") as f:
 以下参数来自 `PresetBaseParams`，但并不是所有端点都会以同一种方式暴露：
 
 | 参数 | 类型 | 默认值 | 范围 | 说明 |
-|------|------|--------|------|------|
+| ------ | ------ | -------- | ------ | ------ |
 | `target_loudness` | float | -23.0 | -40 ~ -10 | 目标 LUFS 响度 |
 | `trim_silence` | bool | false | - | 裁剪首尾静音 |
 | `enable_eq` | bool | true | - | 启用 EQ；部分 preset 会覆盖默认值 |
@@ -225,7 +225,7 @@ with open("output.wav", "wb") as f:
 当前实现中，通用端点与专用端点统一具备以下错误处理：
 
 | 阶段 | 响应 |
-|------|------|
+| ------ | ------ |
 | 文件类型不是音频 | `400 Invalid file type` |
 | 音频读取失败 | `400 Failed to load audio` |
 | `apply_preset()` 抛出 `ValueError` | `400` |
@@ -234,7 +234,7 @@ with open("output.wav", "wb") as f:
 ## Preset 效果速查
 
 | Preset | 适用场景 | 核心特征 |
-|--------|----------|----------|
+| ------ | ---------- | ---------- |
 | **telephone** | 电话录音、IVR | 窄带 300-3400Hz，轻饱和 |
 | **smart_assistant** | AI 助手语音 | 标准链 + 带通 + 空间尾音 |
 | **inner_monologue** | 内心独白、冥想 | 柔和低通 + 回声 + 空气感 |
