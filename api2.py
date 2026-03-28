@@ -13,7 +13,7 @@ from typing import AsyncIterator
 
 import soundfile as sf
 import uvicorn
-from fastapi import File, HTTPException, UploadFile, FastAPI
+from fastapi import File, Form, HTTPException, UploadFile, FastAPI
 from fastapi.responses import StreamingResponse
 
 from ttd_fastapi_utils import setup_cuda_health, apply_postprocess, SmartModel
@@ -48,14 +48,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         vc_wrapper_manager.stop()
     vc_wrapper_manager = None
 
-def post_process_file(vc_wave, sr: int):
+def post_process_file(vc_wave, sr: int, *, lufs: float = -23.0):
     output_file = io.BytesIO()
+    np_wave = vc_wave
     try:
-        target_loudness = -26.0  # 设置目标 LUFS 声度
-        # np_wave = eq(vc_wave, sr)
-        # np_wave, ori_loudness = loudnorm(np_wave, sr, target_loudness)
-        np_wave = apply_postprocess(vc_wave, sr, target_loudness=target_loudness)
-        logger.info(f"LUFS normalized to: {target_loudness:.2f}")
+        np_wave = apply_postprocess(vc_wave, sr, target_loudness=float(lufs))
+        logger.info(f"LUFS normalized to: {float(lufs):.2f}")
     except Exception as e:
         logger.warning(f"Post-processing failed with error: {e}")
     sf.write(output_file, np_wave, sr, format="wav")
@@ -78,6 +76,8 @@ async def infer_vc(
     voice: str,
     steps: str = "50",
     post_process: bool = True,
+    lufs: float = -23.0,
+    loudnorm: float | None = None,
     file: UploadFile = File(...)
 ):
     time_start = time.time()
@@ -129,9 +129,10 @@ async def infer_vc(
         logger.warning(
             "svc task %s long time cost: %.03f", actor, time.time() - time_start
         )
+    effective_lufs = float(loudnorm if loudnorm is not None else lufs)
     # 返回结果
     return StreamingResponse(
-        post_process_file(np_wav, sr),
+        post_process_file(np_wav, sr, lufs=effective_lufs),
         media_type="audio/wav",
         headers={"Content-Disposition": "attachment; filename=output.wav"},
     )
@@ -146,6 +147,8 @@ async def svc_file(
     f0_conditioned: bool = False,
     auto_f0_adjust: bool = False,
     pitch_shift: str = "0",
+    lufs: float = Form(-23.0),
+    loudnorm: float | None = Form(None),
 ):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file_src:
         contents = await src_file.read()
@@ -177,9 +180,10 @@ async def svc_file(
         final_result = next((r for _, r in vc_generator if r is not None), None)
         if not final_result: raise HTTPException(status_code=500, detail="处理音频失败")
         sr, np_wav = final_result
+        effective_lufs = float(loudnorm if loudnorm is not None else lufs)
         
         return StreamingResponse(
-            post_process_file(np_wav, sr),
+            post_process_file(np_wav, sr, lufs=effective_lufs),
             media_type="audio/wav",
             headers={"Content-Disposition": "attachment; filename=output.wav"},
         )

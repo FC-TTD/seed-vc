@@ -9,6 +9,15 @@
 - 从 `0.3.1` 起，preset 本身不再内置“标准后处理链”参数；API 包装层会在 `use_standard_chain=true` 时先执行标准链，再应用 preset 效果，以保持外部调用体验稳定
 - `0.3.2` 新增了 preset 元数据接口；`/postprocess/presets` 现在会把上游 metadata 一并返回
 
+如果要实现上游调试页或正式 UI，先看 [postprocess_ui_split_guide.md](/workspace/svc-api/docs/postprocess_ui_split_guide.md)。
+
+补充：
+
+- `postprocess` 路由使用 `target_loudness` 作为响度参数名
+- `postprocess/apply-generic` 同时兼容 `lufs` 作为 `target_loudness` 的别名；若两者同时传入，以 `lufs` 为准
+- 主 VC 路由 `/infer_vc`、`/svc_file` 现在正式暴露 `lufs`
+- 为兼容旧调用，VC 路由同时接受 `loudnorm` 作为别名；若两者同时传入，以 `loudnorm` 为准
+
 ## 快速开始
 
 ### 挂载到 FastAPI 应用
@@ -252,3 +261,4 @@ uvicorn
 - `postprocess_api.py`：后处理路由模块与参数模型
 - `api2.py`：主服务入口，挂载 postprocess 路由
 - `docs/postprocess_api_design.md`：设计与实现说明
+- `docs/postprocess_ui_split_guide.md`：给上游 UI / AI 实现者的职责拆分说明
