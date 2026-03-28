@@ -9,6 +9,7 @@ Usage in main app:
 """
 
 import io
+import inspect
 import logging
 from typing import Annotated, Literal
 
@@ -18,10 +19,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from ttd_fastapi_utils.preset import (
-    apply_preset,
-    list_presets,
-)
+from ttd_fastapi_utils import postprocess
+from ttd_fastapi_utils.preset import apply_preset, list_presets, preset_map
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -109,7 +108,7 @@ class SmartAssistantParams(PresetBaseParams):
     high_cut_hz: float = Field(default=4250.0, ge=2000.0, le=8000.0, description="Bandpass high cutoff (Hz)")
     drive: float = Field(default=1.45, ge=1.0, le=5.0, description="Saturation drive amount")
     saturate_wet: float = Field(default=0.06, ge=0.0, le=1.0, description="Saturation wet ratio")
-    wet_ratio: float = Field(default=1.0, ge=0.0, le=1.0, description="Overall wet mix ratio")
+    wet_ratio: float = Field(default=0.95, ge=0.0, le=1.0, description="Overall wet mix ratio")
     delay_ms: float = Field(default=41.0, ge=1.0, le=200.0, description="Delay time (ms)")
     decay: float = Field(default=0.53, ge=0.0, le=1.0, description="Delay decay factor")
     repeats: int = Field(default=2, ge=0, le=10, description="Delay repeats")
@@ -135,7 +134,7 @@ class SmartAssistantParams(PresetBaseParams):
         high_cut_hz: float = Form(default=4250.0, ge=2000.0, le=8000.0),
         drive: float = Form(default=1.45, ge=1.0, le=5.0),
         saturate_wet: float = Form(default=0.06, ge=0.0, le=1.0),
-        wet_ratio: float = Form(default=1.0, ge=0.0, le=1.0),
+        wet_ratio: float = Form(default=0.95, ge=0.0, le=1.0),
         delay_ms: float = Form(default=41.0, ge=1.0, le=200.0),
         decay: float = Form(default=0.53, ge=0.0, le=1.0),
         repeats: int = Form(default=2, ge=0, le=10),
@@ -174,6 +173,7 @@ class SmartAssistantParams(PresetBaseParams):
 class InnerMonologueParams(PresetBaseParams):
     """Inner monologue preset parameters"""
     use_standard_chain: bool = Field(default=False, description="Apply standard postprocess chain first")
+    enable_eq: bool = Field(default=False, description="Enable EQ in standard chain")
     enable_delay: bool = Field(default=True, description="Enable delay effect")
     enable_reverb: bool = Field(default=True, description="Enable reverb")
     lowpass_hz: float = Field(default=2200.0, ge=500.0, le=4000.0, description="Lowpass cutoff (Hz)")
@@ -191,7 +191,7 @@ class InnerMonologueParams(PresetBaseParams):
         cls,
         target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
         trim_silence: bool = Form(default=False),
-        enable_eq: bool = Form(default=True),
+        enable_eq: bool = Form(default=False),
         enable_limiter: bool = Form(default=True),
         limiter_threshold: float = Form(default=0.98, ge=0.5, le=1.0),
         use_standard_chain: bool = Form(default=False),
@@ -231,6 +231,8 @@ class InnerMonologueParams(PresetBaseParams):
 class RadioParams(PresetBaseParams):
     """Radio preset parameters"""
     use_standard_chain: bool = Field(default=False, description="Apply standard postprocess chain first")
+    enable_eq: bool = Field(default=False, description="Enable EQ in standard chain")
+    limiter_threshold: float = Field(default=0.9, ge=0.5, le=1.0, description="Limiter threshold (0-1)")
     enable_saturate: bool = Field(default=True, description="Enable saturation")
     enable_delay: bool = Field(default=True, description="Enable delay effect")
     enable_reverb: bool = Field(default=True, description="Enable reverb")
@@ -251,9 +253,9 @@ class RadioParams(PresetBaseParams):
         cls,
         target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
         trim_silence: bool = Form(default=False),
-        enable_eq: bool = Form(default=True),
+        enable_eq: bool = Form(default=False),
         enable_limiter: bool = Form(default=True),
-        limiter_threshold: float = Form(default=0.98, ge=0.5, le=1.0),
+        limiter_threshold: float = Form(default=0.9, ge=0.5, le=1.0),
         use_standard_chain: bool = Form(default=False),
         enable_saturate: bool = Form(default=True),
         enable_delay: bool = Form(default=True),
@@ -297,6 +299,8 @@ class RadioParams(PresetBaseParams):
 class IntercomParams(PresetBaseParams):
     """Intercom preset parameters"""
     use_standard_chain: bool = Field(default=False, description="Apply standard postprocess chain first")
+    enable_eq: bool = Field(default=False, description="Enable EQ in standard chain")
+    limiter_threshold: float = Field(default=0.97, ge=0.5, le=1.0, description="Limiter threshold (0-1)")
     enable_saturate: bool = Field(default=True, description="Enable saturation")
     enable_reverb: bool = Field(default=False, description="Enable reverb")
     low_cut_hz: float = Field(default=450.0, ge=100.0, le=1000.0, description="Bandpass low cutoff (Hz)")
@@ -313,9 +317,9 @@ class IntercomParams(PresetBaseParams):
         cls,
         target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
         trim_silence: bool = Form(default=False),
-        enable_eq: bool = Form(default=True),
+        enable_eq: bool = Form(default=False),
         enable_limiter: bool = Form(default=True),
-        limiter_threshold: float = Form(default=0.98, ge=0.5, le=1.0),
+        limiter_threshold: float = Form(default=0.97, ge=0.5, le=1.0),
         use_standard_chain: bool = Form(default=False),
         enable_saturate: bool = Form(default=True),
         enable_reverb: bool = Form(default=False),
@@ -355,6 +359,10 @@ PRESET_PARAMS_MAP: dict[str, type[PresetBaseParams]] = {
     "inner_monologue": InnerMonologueParams,
     "radio": RadioParams,
     "intercom": IntercomParams,
+}
+PRESET_FUNCTION_MAP = {
+    preset_name: preset_map()[preset_name]
+    for preset_name in list_presets()
 }
 
 # ============== Helper Functions ==============
@@ -400,6 +408,37 @@ def _apply_preset_with_params(
         raise HTTPException(status_code=500, detail=f"Audio processing failed: {str(e)}")
 
 
+def _apply_standard_chain_if_needed(
+    wav: np.ndarray,
+    sr: int,
+    params: PresetBaseParams,
+) -> np.ndarray:
+    """Preserve wrapper-level standard-chain compatibility across preset API changes."""
+    if not getattr(params, "use_standard_chain", False):
+        return wav
+    return postprocess.apply_postprocess(
+        wav,
+        sr,
+        target_loudness=params.target_loudness,
+        enable=True,
+        trim_silence=params.trim_silence,
+        enable_eq=params.enable_eq,
+    )
+
+
+def _extract_preset_kwargs(
+    preset_name: str,
+    params: PresetBaseParams,
+) -> dict:
+    """Filter wrapper params down to the kwargs accepted by the current preset function."""
+    accepted = set(inspect.signature(PRESET_FUNCTION_MAP[preset_name]).parameters) - {"wav_data", "sr"}
+    return {
+        key: value
+        for key, value in params.model_dump().items()
+        if key in accepted
+    }
+
+
 def _process_preset_request(
     preset_name: str,
     file: UploadFile,
@@ -412,7 +451,9 @@ def _process_preset_request(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to load audio: {str(e)}")
 
-    processed = _apply_preset_with_params(preset_name, wav, sr, params.model_dump())
+    prepared = _apply_standard_chain_if_needed(wav, sr, params)
+    preset_kwargs = _extract_preset_kwargs(preset_name, params)
+    processed = _apply_preset_with_params(preset_name, prepared, sr, preset_kwargs)
     output = _save_audio(processed, sr)
     return StreamingResponse(
         output,
@@ -495,15 +536,15 @@ async def apply_intercom(
     return _process_preset_request("intercom", file, params)
 
 
-@router.post("/apply/{preset_name}")
+@router.post("/apply-generic/{preset_name}")
 async def apply_preset_endpoint(
     preset_name: Literal["telephone", "smart_assistant", "inner_monologue", "radio", "intercom"],
     file: UploadFile = File(..., description="Input audio file (WAV/MP3/FLAC/OGG)"),
     target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
     trim_silence: bool = Form(default=False),
-    enable_eq: bool = Form(default=True),
+    enable_eq: bool | None = Form(default=None),
     enable_limiter: bool = Form(default=True),
-    limiter_threshold: float = Form(default=0.98, ge=0.5, le=1.0),
+    limiter_threshold: float | None = Form(default=None, ge=0.5, le=1.0),
     use_standard_chain: bool | None = Form(default=None),
     enable_saturate: bool | None = Form(default=None),
     enable_delay: bool | None = Form(default=None),

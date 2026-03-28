@@ -4,6 +4,8 @@
 
 本文档以当前仓库中的实际实现为准，说明已经落地的结构、接口行为和当前取舍。
 
+当前实现已适配 `ttd_fastapi_utils>=0.3.1`。
+
 ## 2. 设计目标
 
 为 Seed-VC API 提供独立的音频后处理端点，基于 `ttd_fastapi_utils.preset` 模块的 5 种场景预设，让用户可以对任意音频文件应用后处理效果。
@@ -40,7 +42,7 @@ app.include_router(postprocess_router, prefix="/postprocess", tags=["postprocess
 | 类型 | 路径 | 说明 |
 |------|------|------|
 | 元数据 | `GET /postprocess/presets` | 返回 preset 名称、别名、描述 |
-| 通用 | `POST /postprocess/apply/{preset_name}` | 统一入口 |
+| 通用 | `POST /postprocess/apply-generic/{preset_name}` | 统一入口 |
 | 专用 | `POST /postprocess/apply/telephone` 等 | 代码中已声明 |
 
 ### 4.2 当前可稳定依赖的入口
@@ -48,7 +50,7 @@ app.include_router(postprocess_router, prefix="/postprocess", tags=["postprocess
 当前已将专用路由放在动态路由之前注册，因此：
 
 - `/postprocess/apply/telephone` 等专用端点可正常命中
-- `/postprocess/apply/{preset_name}` 继续作为统一入口保留
+- `/postprocess/apply-generic/{preset_name}` 继续作为统一入口保留
 - 形成“专用端点负责更好调试体验，通用端点负责脚本化调用”的双层结构
 
 ## 5. 参数设计
@@ -78,6 +80,15 @@ IntercomParams
 - 描述参数结构
 - 为后续真正暴露专用端点提供基础
 
+其中有一层额外兼容语义：
+
+- `use_standard_chain`
+- `target_loudness`
+- `trim_silence`
+- `enable_eq`
+
+这些字段在 `0.3.1` 起不再是 preset 库函数自身的参数，而是由我们的 API 包装层先消费，再决定是否调用 `postprocess.apply_postprocess()`。
+
 ### 5.2 当前实际暴露方式
 
 当前端点统一采用 multipart form-data，参数暴露方式如下：
@@ -97,6 +108,7 @@ IntercomParams
 - 专用端点通过 `Depends(Model.as_form)` 暴露对应 preset 的完整表单字段
 - 通用端点暴露所有 preset 的并集字段，再按 `preset_name` 过滤到目标参数模型
 - 不再使用 `params_json`
+- 调用 preset 前，包装层会根据当前库函数签名过滤掉不再支持的参数
 
 ## 6. 请求处理流程
 
@@ -109,6 +121,7 @@ UploadFile
   -> 收集表单字段
   -> 根据 preset_name 过滤字段
   -> 实例化目标参数模型
+  -> 如有需要先执行标准链
   -> apply_preset()
   -> _save_audio()
   -> StreamingResponse(audio/wav)
@@ -147,6 +160,8 @@ UploadFile
 - 音频读取异常包装
 - preset 调用异常映射
 - WAV 响应封装
+
+另外，针对 `ttd_fastapi_utils 0.3.1` 的 preset 签名调整，包装层新增了“按当前函数签名过滤 kwargs”的保护，避免因为上游删参而把旧字段直接透传成 `TypeError`。
 
 ## 8. 与 VC 流程的关系
 

@@ -4,6 +4,8 @@
 
 本文档描述的是当前仓库里的实际实现行为。
 
+当前已适配 `ttd_fastapi_utils>=0.3.1`。从这个版本开始，preset 本身不再内置“标准后处理链”参数；API 包装层会在 `use_standard_chain=true` 时先执行标准链，再应用 preset 效果，以保持外部调用体验稳定。
+
 ## 快速开始
 
 ### 挂载到 FastAPI 应用
@@ -61,7 +63,7 @@ GET /postprocess/presets
 ### 2. 通用 Preset 应用
 
 ```http
-POST /postprocess/apply/{preset_name}
+POST /postprocess/apply-generic/{preset_name}
 ```
 
 路径参数：
@@ -98,7 +100,7 @@ POST /postprocess/apply/{preset_name}
 
 当前实现说明：
 
-- 专用路由已放在动态路由之前注册，避免被 `POST /postprocess/apply/{preset_name}` 覆盖
+- 通用路由已改为独立路径 `POST /postprocess/apply-generic/{preset_name}`，避免与专用路由冲突
 - 交互式调参优先使用专用端点
 - 脚本化批量调用可以继续使用通用端点
 
@@ -127,7 +129,7 @@ curl -X POST "http://localhost:7856/postprocess/apply/smart_assistant" \
 动态端点 + preset 特有参数：
 
 ```bash
-curl -X POST "http://localhost:7856/postprocess/apply/inner_monologue" \
+curl -X POST "http://localhost:7856/postprocess/apply-generic/inner_monologue" \
   -F "file=@input.wav" \
   -F "lowpass_hz=2000" \
   -F "reverb_wet=0.4" \
@@ -164,9 +166,9 @@ with open("output.wav", "wb") as f:
 |------|------|--------|------|------|
 | `target_loudness` | float | -23.0 | -40 ~ -10 | 目标 LUFS 响度 |
 | `trim_silence` | bool | false | - | 裁剪首尾静音 |
-| `enable_eq` | bool | true | - | 启用 EQ |
+| `enable_eq` | bool | true | - | 启用 EQ；部分 preset 会覆盖默认值 |
 | `enable_limiter` | bool | true | - | 启用限幅器 |
-| `limiter_threshold` | float | 0.98 | 0.5 ~ 1.0 | 限幅器阈值 |
+| `limiter_threshold` | float | 0.98 | 0.5 ~ 1.0 | 限幅器阈值；部分 preset 会覆盖默认值 |
 
 ### 各 Preset 参数模型
 
@@ -187,6 +189,11 @@ with open("output.wav", "wb") as f:
 - `intercom`: `low_cut_hz`、`high_cut_hz`、`reverb_*`
 
 专用端点会把对应 preset 的字段直接暴露到 Swagger 表单中；通用端点则暴露一组并集字段，按所选 preset 过滤后再应用。
+
+和 `0.3.1` 的对应关系：
+
+- `use_standard_chain`、`target_loudness`、`trim_silence`、`enable_eq` 现在由 API 包装层先处理
+- 真正传给 `ttd_fastapi_utils.preset` 的，只保留当前 preset 函数还接受的参数
 
 ## 错误处理
 
@@ -214,7 +221,7 @@ with open("output.wav", "wb") as f:
 如果只看当前模块与入口文件，至少涉及：
 
 ```text
-ttd_fastapi_utils>=0.3.0
+ttd_fastapi_utils>=0.3.1
 fastapi
 pydantic
 soundfile
