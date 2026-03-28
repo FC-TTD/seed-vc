@@ -21,7 +21,7 @@ WORKDIR /app
 RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \   
     python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
 
-RUN python3 -m pip install --no-cache-dir 'ttd_fastapi_utils>=0.3.0' --extra-index-url http://pypi-server/simple/ --trusted-host pypi-server
+RUN python3 -m pip install --no-cache-dir 'ttd_fastapi_utils>=0.3.1' --extra-index-url http://pypi-server/simple/ --trusted-host pypi-server
 
 # Copy the rest of the application
 COPY . /app
