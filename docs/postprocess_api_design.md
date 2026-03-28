@@ -4,7 +4,7 @@
 
 本文档以当前仓库中的实际实现为准，说明已经落地的结构、接口行为和当前取舍。
 
-当前实现已适配 `ttd_fastapi_utils>=0.3.1`。
+当前实现已适配 `ttd_fastapi_utils>=0.3.2`。
 
 ## 2. 设计目标
 
@@ -41,7 +41,7 @@ app.include_router(postprocess_router, prefix="/postprocess", tags=["postprocess
 
 | 类型 | 路径 | 说明 |
 |------|------|------|
-| 元数据 | `GET /postprocess/presets` | 返回 preset 名称、别名、描述 |
+| 元数据 | `GET /postprocess/presets` | 返回 preset 名称、别名、描述、metadata |
 | 通用 | `POST /postprocess/apply-generic/{preset_name}` | 统一入口 |
 | 专用 | `POST /postprocess/apply/telephone` 等 | 代码中已声明 |
 
@@ -89,6 +89,8 @@ IntercomParams
 
 这些字段在 `0.3.1` 起不再是 preset 库函数自身的参数，而是由我们的 API 包装层先消费，再决定是否调用 `postprocess.apply_postprocess()`。
 
+`0.3.2` 进一步新增了 `preset_metadata()`，因此 `/presets` 现在会把上游 metadata 一并返回，避免 preset 摘要、推荐控制项和推荐标准链信息继续手写漂移。
+
 ### 5.2 当前实际暴露方式
 
 当前端点统一采用 multipart form-data，参数暴露方式如下：
@@ -109,6 +111,7 @@ IntercomParams
 - 通用端点暴露所有 preset 的并集字段，再按 `preset_name` 过滤到目标参数模型
 - 不再使用 `params_json`
 - 调用 preset 前，包装层会根据当前库函数签名过滤掉不再支持的参数
+- `/presets` 会透传 `preset_metadata()` 的结果
 
 ## 6. 请求处理流程
 
@@ -162,6 +165,14 @@ UploadFile
 - WAV 响应封装
 
 另外，针对 `ttd_fastapi_utils 0.3.1` 的 preset 签名调整，包装层新增了“按当前函数签名过滤 kwargs”的保护，避免因为上游删参而把旧字段直接透传成 `TypeError`。
+
+针对 `0.3.2`：
+
+- `delay()` 的语义改成返回包含原始信号的 composite signal
+- 新增 `delay_tail()` 作为 wet-only echo tail
+- 新增 `preset_metadata()`
+
+由于 wrapper 自己并不复刻 delay 链路，而是委托给上游 preset 实现，所以这里不需要手动改效果链，只需要升级包版本，并把 metadata 接进 API 返回。
 
 ## 8. 与 VC 流程的关系
 
