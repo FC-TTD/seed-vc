@@ -541,6 +541,7 @@ async def apply_preset_endpoint(
     preset_name: Literal["telephone", "smart_assistant", "inner_monologue", "radio", "intercom"],
     file: UploadFile = File(..., description="Input audio file (WAV/MP3/FLAC/OGG)"),
     target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
+    lufs: float | None = Form(default=None, ge=-40.0, le=-10.0),
     trim_silence: bool = Form(default=False),
     enable_eq: bool | None = Form(default=None),
     enable_limiter: bool = Form(default=True),
@@ -570,7 +571,7 @@ async def apply_preset_endpoint(
     Preset-specific fields that are irrelevant to the selected preset are ignored.
     """
     raw_params = {
-        "target_loudness": target_loudness,
+        "target_loudness": lufs if lufs is not None else target_loudness,
         "trim_silence": trim_silence,
         "enable_eq": enable_eq,
         "enable_limiter": enable_limiter,

@@ -182,6 +182,8 @@ UploadFile
 
 - `postprocess_api.py` 是独立路由能力
 - `/infer_vc`、`/svc_file` 仍使用主流程里的基础后处理
+- VC 路由正式暴露 `lufs` 作为响度参数，并兼容 `loudnorm` 旧别名
+- `postprocess/apply-generic` 兼容 `lufs` 作为 `target_loudness` 的别名
 - 两者目前并未在 API 层打通成统一配置入口
 
 ## 9. 性能与实现取舍
