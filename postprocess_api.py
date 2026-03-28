@@ -20,7 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ttd_fastapi_utils import postprocess
-from ttd_fastapi_utils.preset import apply_preset, list_presets, preset_map
+from ttd_fastapi_utils.preset import apply_preset, list_presets, preset_map, preset_metadata
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,6 +33,7 @@ class PresetListResponse(BaseModel):
     presets: list[str] = Field(description="Canonical preset names")
     aliases: dict[str, list[str]] = Field(description="Preset name aliases")
     descriptions: dict[str, str] = Field(description="Preset descriptions")
+    metadata: dict[str, dict] = Field(description="Preset metadata from ttd_fastapi_utils")
 
 
 class PresetBaseParams(BaseModel):
@@ -468,12 +469,10 @@ def _process_preset_request(
 @router.get("/presets", response_model=PresetListResponse)
 async def get_presets():
     """Get list of available post-processing presets with descriptions."""
+    metadata = preset_metadata()
     descriptions = {
-        "telephone": "电话音：窄带 300-3400Hz + 轻饱和，模拟电话听筒音质",
-        "smart_assistant": "智能语音：标准链 + 带通滤波 + 轻饱和 + 空间尾音，适合AI助手语音",
-        "inner_monologue": "心声独白：柔和低通 + 短回声 + 空气感，营造内心独白氛围",
-        "radio": "收音机/广播：中频突出 + 箱体/空间感，模拟AM/FM广播效果",
-        "intercom": "对讲机：更窄、更硬的中频质感，模拟对讲机/步话机效果",
+        preset_name: str(metadata.get(preset_name, {}).get("summary", preset_name))
+        for preset_name in list_presets()
     }
 
     aliases = {
@@ -488,6 +487,7 @@ async def get_presets():
         presets=list(list_presets()),
         aliases=aliases,
         descriptions=descriptions,
+        metadata=metadata,
     )
 
 

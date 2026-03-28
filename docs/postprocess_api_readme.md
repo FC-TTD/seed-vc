@@ -4,7 +4,10 @@
 
 本文档描述的是当前仓库里的实际实现行为。
 
-当前已适配 `ttd_fastapi_utils>=0.3.1`。从这个版本开始，preset 本身不再内置“标准后处理链”参数；API 包装层会在 `use_standard_chain=true` 时先执行标准链，再应用 preset 效果，以保持外部调用体验稳定。
+当前已适配 `ttd_fastapi_utils>=0.3.2`。
+
+- 从 `0.3.1` 起，preset 本身不再内置“标准后处理链”参数；API 包装层会在 `use_standard_chain=true` 时先执行标准链，再应用 preset 效果，以保持外部调用体验稳定
+- `0.3.2` 新增了 preset 元数据接口；`/postprocess/presets` 现在会把上游 metadata 一并返回
 
 ## 快速开始
 
@@ -54,8 +57,21 @@ GET /postprocess/presets
     "intercom": ["对讲机"]
   },
   "descriptions": {
-    "telephone": "电话音：窄带 300-3400Hz + 轻饱和，模拟电话听筒音质",
-    "smart_assistant": "智能语音：标准链 + 带通滤波 + 轻饱和 + 空间尾音，适合AI助手语音"
+    "telephone": "bandpass + saturation",
+    "smart_assistant": "bandpass + light saturation + delay tail"
+  },
+  "metadata": {
+    "telephone": {
+      "display_name": "telephone 电话音",
+      "summary": "bandpass + saturation",
+      "primary_controls": ["low_cut_hz", "high_cut_hz", "wet_ratio", "drive", "limiter_threshold"],
+      "recommended_standard_postprocess": {
+        "enable": false,
+        "target_loudness": -23.0,
+        "trim_silence": false,
+        "enable_eq": true
+      }
+    }
   }
 }
 ```
@@ -221,7 +237,7 @@ with open("output.wav", "wb") as f:
 如果只看当前模块与入口文件，至少涉及：
 
 ```text
-ttd_fastapi_utils>=0.3.1
+ttd_fastapi_utils>=0.3.2
 fastapi
 pydantic
 soundfile
