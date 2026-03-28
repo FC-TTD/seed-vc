@@ -73,6 +73,16 @@ wav = preset.apply_preset("smart_assistant", wav, sr)
 1. `Standard Postprocess / 标准后处理`
 2. `Style Preset Controls / 预设风格参数`
 
+### 强约束
+
+- `Standard Postprocess` 必须有自己的总开关。
+- 当标准链总开关关闭时，以下控件应视为“不生效”状态：
+  - `Target LUFS`
+  - `Trim Silence / 静音裁切`
+  - `Enable EQ / 启用 EQ`
+- UI 最好直接禁用、折叠，或明确显示为只读，而不是让用户误以为这些参数仍会参与计算。
+- 对应地，风格控件不应被这个总开关一起禁用；它们属于 `Style Preset`，不是 `Standard Postprocess`。
+
 不要把这些控件混成一块：
 
 - `Trim Silence / 静音裁切`
@@ -83,6 +93,12 @@ wav = preset.apply_preset("smart_assistant", wav, sr)
 - `Enable Reverb / 启用 Reverb`
 
 原因是业务会自然把它们理解成“同一套 preset 参数”，但实际上前者是基础扫尾，后者是风格塑形。
+
+推荐交互：
+
+- 默认先显示 `Standard Postprocess` 开关
+- 开关打开后，再展开 `Target LUFS`、`Trim Silence`、`Enable EQ`
+- `Style Preset Controls` 始终独立显示，不跟随标准链开关联动
 
 ## 推荐元数据结构
 

@@ -11,12 +11,17 @@
 
 如果要实现上游调试页或正式 UI，先看 [postprocess_ui_split_guide.md](/workspace/svc-api/docs/postprocess_ui_split_guide.md)。
 
+UI 侧需要特别注意：
+
+- `Standard Postprocess` 必须有单独总开关
+- 当总开关关闭时，`lufs` / `target_loudness`、`trim_silence`、`enable_eq` 应视为不生效
+
 补充：
 
 - `postprocess` 路由使用 `target_loudness` 作为响度参数名
-- `postprocess/apply-generic` 同时兼容 `lufs` 作为 `target_loudness` 的别名；若两者同时传入，以 `lufs` 为准
-- 主 VC 路由 `/infer_vc`、`/svc_file` 现在正式暴露 `lufs`
-- 为兼容旧调用，VC 路由同时接受 `loudnorm` 作为别名；若两者同时传入，以 `loudnorm` 为准
+- `postprocess/apply-generic` 同时支持 `lufs`，内部会映射到 `target_loudness`
+- 主 VC 路由 `/infer_vc`、`/svc_file` 使用 `post_process` 作为标准链总开关
+- 只有在 `post_process=true` 时，`lufs`、`trim_silence`、`enable_eq` 才参与计算
 
 ## 快速开始
 
