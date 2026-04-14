@@ -15,8 +15,14 @@ services:
     stdin_open: true
     tty: true
     restart: always
+    labels:
+      caddy_network: caddy
+      caddy: http://svc-api
+      caddy.reverse_proxy: "{{upstreams 7856}}"
     ports:
       - "7000:7856"
+    networks:
+      - caddy
     deploy:
       resources:
         reservations:
@@ -48,3 +54,7 @@ services:
   #           - driver: nvidia
   #             device_ids: [ "2" ]
   #             capabilities: [ gpu ]
+
+networks:
+  caddy:
+    external: true
