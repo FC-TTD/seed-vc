@@ -215,6 +215,12 @@ accelerate launch train_v2.py
     - They should be under `./runs/<run-name>/`, with the checkpoint named `ft_model.pth` and config file with the same name as the training config file.
     - You still have to specify a reference audio file of the speaker you'd like to use during inference, similar to zero-shot usage.
 
+## Docker Deployment Optimization
+This project is now equipped with a standardized and modernized Docker deployment strategy:
+- **Base Image**: Migrated from `python:slim` to `nvidia/cuda:12.4.1` with embedded `build-essential` tools to fully support the compilation of system-level C++ package extensions like `webrtcvad`.
+- **Dependency Tool**: Utilizes `uv` for blazing-fast package installation and strict PEP508 PyTorch index resolving.
+- **Caddy Proxy Gateway**: The `compose.yaml` has been wired into an external `caddy` overlay network via `caddy_network: caddy` labels, functioning natively with swarm-level `Caddy-Docker-Proxy`. Local developers may remove the label and external network block if working in a standalone, isolated environment.
+
 ## TODO📝
 - [x] Release code
 - [x] Release pretrained models: [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-SeedVC-blue)](https://huggingface.co/Plachta/Seed-VC)
