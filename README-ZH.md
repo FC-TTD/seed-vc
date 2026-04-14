@@ -155,6 +155,12 @@ where:
     - 它们应位于 `./runs/<run-name>/` 下，检查点命名为 `ft_model.pth`，配置文件名称与训练配置文件相同。
     - 在推理时，您仍需指定要使用的说话人的参考音频文件，类似于零样本推理。
 
+## 容器化部署优化 (Docker Deployment Optimization)
+本项目现已接入了标准的 Swarm 生态与现代化构建，默认提供开箱即用的高性能容器组：
+- **基础镜像框架**：从 `python:slim` 替换至 `nvidia/cuda:12.4.1` 以完全解决底层系统级别 C++ 组件(如 `webrtcvad`)的编译失败顽疾，同时内置了完整的 `build-essential` 系统组件。
+- **构建依赖系统**：已替换龟速的标准 `pip` 为基于 Rust 强化的 `uv` 工具进行项目级的极速依赖安装并统一了 PyTorch 源。
+- **Caddy-Docker-Proxy 入口**：在 `compose.yaml` 中深度接入了带有 `caddy_network: caddy` 特殊标签的网络路由体系。该 API 无需对外单独挂载端口即可自动通过中心化的外部/公共 Caddy 集群完成 `http://svc-api` 的业务端代理分发。如果用户需要在隔离环境下启动，请取消 `external: true` 并抹去 caddy 相关的 labels。
+
 ## TODO📝
 - [x] 发布代码
 - [x] 发布预训练模型： [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-SeedVC-blue)](https://huggingface.co/Plachta/Seed-VC)
