@@ -161,6 +161,18 @@ where:
 - **构建依赖系统**：已替换龟速的标准 `pip` 为基于 Rust 强化的 `uv` 工具进行项目级的极速依赖安装并统一了 PyTorch 源。
 - **Caddy-Docker-Proxy 入口**：在 `compose.yaml` 中深度接入了带有 `caddy_network: caddy` 特殊标签的网络路由体系。该 API 无需对外单独挂载端口即可自动通过中心化的外部/公共 Caddy 集群完成 `http://svc-api` 的业务端代理分发。如果用户需要在隔离环境下启动，请取消 `external: true` 并抹去 caddy 相关的 labels。
 
+### Seed-VC v1/v2 双版本测试服务
+
+`lab_api.py` 提供统一测试页和版本化 API：
+
+- `GET /`：包含 v1.0 与 v2.0 两个 Tab 的测试页。
+- `POST /api/v1/convert`：代理既有 v1.0 `svc-api`，保留普通 VC 与歌声/F0 参数。
+- `POST /api/v2/convert`：本地懒加载 v2.0，支持音色、风格、情绪、口音转换与匿名化。
+- `POST /api/v2/unload`：主动卸载 v2.0 并释放显存。
+- `GET /api/models`：返回双版本能力声明。
+
+TTD Edge 预览使用 `compose.preview.yaml` 与 `Dockerfile.preview`，薄增量镜像固定在已经验证的 Seed-VC API 基础镜像摘要上，默认通过 `http://seed-vc/` 或 `http://ttd-edge:17879/` 访问。V2 模型空闲 10 分钟后自动卸载；模型权重与 Hugging Face cache 均保留在 `/TTD-Data/seed-vc`，不会写入镜像。
+
 ## TODO📝
 - [x] 发布代码
 - [x] 发布预训练模型： [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-SeedVC-blue)](https://huggingface.co/Plachta/Seed-VC)

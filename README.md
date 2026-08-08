@@ -221,6 +221,18 @@ This project is now equipped with a standardized and modernized Docker deploymen
 - **Dependency Tool**: Utilizes `uv` for blazing-fast package installation and strict PEP508 PyTorch index resolving.
 - **Caddy Proxy Gateway**: The `compose.yaml` has been wired into an external `caddy` overlay network via `caddy_network: caddy` labels, functioning natively with swarm-level `Caddy-Docker-Proxy`. Local developers may remove the label and external network block if working in a standalone, isolated environment.
 
+### Seed-VC V1/V2 test service
+
+`lab_api.py` exposes one comparison page and versioned APIs:
+
+- `GET /`: test UI with separate Seed-VC v1.0 and v2.0 tabs.
+- `POST /api/v1/convert`: proxies the existing v1.0 `svc-api`, including voice, singing, and F0 controls.
+- `POST /api/v2/convert`: lazily loads v2.0 for voice, style, emotion, accent conversion, and anonymization.
+- `POST /api/v2/unload`: explicitly releases the v2.0 model and CUDA cache.
+- `GET /api/models`: reports the available versions and capabilities.
+
+The TTD Edge preview uses `compose.preview.yaml` and `Dockerfile.preview`. The thin preview image is pinned to a verified Seed-VC API base-image digest and is available through `http://seed-vc/` or `http://ttd-edge:17879/`. V2 unloads after ten idle minutes; weights and Hugging Face caches remain on `/TTD-Data/seed-vc` rather than being baked into the image.
+
 ## TODO📝
 - [x] Release code
 - [x] Release pretrained models: [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-SeedVC-blue)](https://huggingface.co/Plachta/Seed-VC)
