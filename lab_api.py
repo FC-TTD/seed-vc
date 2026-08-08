@@ -125,6 +125,16 @@ def ui_redirect():
     return FileResponse(APP_ROOT / "static" / "index.html")
 
 
+@app.get("/examples/source.wav", include_in_schema=False)
+def example_source_audio():
+    return FileResponse(APP_ROOT / "examples" / "source" / "source_s1.wav", media_type="audio/wav")
+
+
+@app.get("/examples/reference.wav", include_in_schema=False)
+def example_reference_audio():
+    return FileResponse(APP_ROOT / "examples" / "reference" / "s1p1.wav", media_type="audio/wav")
+
+
 @app.get("/api/models")
 def model_catalog():
     return {

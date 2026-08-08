@@ -8,6 +8,16 @@ class LabContractTests(unittest.TestCase):
         for expected in ("Seed-VC v1.0", "Seed-VC v2.0", "/api/v1/convert", "/api/v2/convert"):
             self.assertIn(expected, html)
 
+    def test_ui_audio_inputs_support_playback_and_trimming(self):
+        html = (Path(__file__).parents[1] / "static" / "index.html").read_text(encoding="utf-8")
+        for expected in ("wave-canvas", "play-button", "裁剪选区", "encodeWav", "AudioContext", "加载示例音频"):
+            self.assertIn(expected, html)
+
+    def test_lab_api_exposes_browser_qa_examples(self):
+        api = (Path(__file__).parents[1] / "lab_api.py").read_text(encoding="utf-8")
+        self.assertIn('/examples/source.wav', api)
+        self.assertIn('/examples/reference.wav', api)
+
     def test_preview_compose_keeps_v1_as_upstream_and_pins_gpu2(self):
         compose = (Path(__file__).parents[1] / "compose.preview.yaml").read_text(encoding="utf-8")
         self.assertIn("SEED_VC_V1_UPSTREAM: http://svc-api", compose)

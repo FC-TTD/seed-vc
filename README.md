@@ -226,6 +226,7 @@ This project is now equipped with a standardized and modernized Docker deploymen
 `lab_api.py` exposes one comparison page and versioned APIs:
 
 - `GET /`: test UI with separate Seed-VC v1.0 and v2.0 tabs.
+- Both source and reference inputs support drag/drop or picker uploads, built-in examples, waveform playback, draggable or numeric trim ranges, and client-side WAV trimming; submissions use the trimmed file.
 - `POST /api/v1/convert`: proxies the existing v1.0 `svc-api`, including voice, singing, and F0 controls.
 - `POST /api/v2/convert`: lazily loads v2.0 for voice, style, emotion, accent conversion, and anonymization.
 - `POST /api/v2/unload`: explicitly releases the v2.0 model and CUDA cache.
