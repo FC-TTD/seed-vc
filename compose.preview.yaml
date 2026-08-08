@@ -1,0 +1,40 @@
+services:
+  seed-vc-lab:
+    container_name: seed-vc-lab
+    build:
+      context: .
+      dockerfile: Dockerfile.preview
+    image: seed-vc-lab:preview
+    command: ["python", "lab_api.py"]
+    environment:
+      LC_ALL: C.UTF-8
+      TZ: Asia/Shanghai
+      VC_ROOT: /data/ttd/seed-vc
+      SEED_VC_V1_UPSTREAM: http://svc-api
+      MODEL_TIMEOUT_SECONDS: "600"
+      HTTP_TIMEOUT_SECONDS: "600"
+    volumes:
+      - /TTD-Data/seed-vc:/data/ttd/seed-vc
+      - /TTD-Data/seed-vc/checkpoints:/app/checkpoints
+      - /TTD-Data/seed-vc/cache:/root/.cache
+    shm_size: 16G
+    restart: unless-stopped
+    ports:
+      - "17879:7856"
+    networks:
+      - caddy
+    labels:
+      caddy_network: caddy
+      caddy: http://seed-vc
+      caddy.reverse_proxy: "{{upstreams 7856}}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["2"]
+              capabilities: [gpu]
+
+networks:
+  caddy:
+    external: true

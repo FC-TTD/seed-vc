@@ -1,0 +1,11 @@
+FROM registry.ttd/svc-api@sha256:a5c4833ed05fd9da3885eb9f3094c61f2db156100355325202a43132a2f992ec
+
+WORKDIR /app
+
+COPY lab_api.py /app/lab_api.py
+COPY static /app/static
+
+EXPOSE 7856
+
+ENTRYPOINT ["tini", "--"]
+CMD ["python", "lab_api.py"]
