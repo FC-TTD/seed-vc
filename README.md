@@ -221,6 +221,26 @@ This project is now equipped with a standardized and modernized Docker deploymen
 - **Dependency Tool**: Utilizes `uv` for blazing-fast package installation and strict PEP508 PyTorch index resolving.
 - **Caddy Proxy Gateway**: The `compose.yaml` has been wired into an external `caddy` overlay network via `caddy_network: caddy` labels, functioning natively with swarm-level `Caddy-Docker-Proxy`. Local developers may remove the label and external network block if working in a standalone, isolated environment.
 
+### TTD SVC API deployment
+
+The formal API deployment uses one image and two isolated GPU containers so V1 and V2 can coexist without sharing model memory:
+
+- `http://seed-vc/v1/*` routes to `svc-v1`; `http://svc-api` remains its compatibility alias.
+- `http://seed-vc/v2/*` routes to `svc-v2`.
+- Both services lazy-load independently. `MODEL_TIMEOUT_SECONDS` defaults to `7200`.
+- Model weights and Hugging Face caches stay under `/TTD-Data/seed-vc` and are not included in the image.
+
+Formal builds and deployments must use a committed source snapshot and an immutable `registry.ttd/seed-vc/svc:h-*` image. Run the repository entrypoint through the TTD deployment launcher:
+
+```bash
+scripts/ttd-ansible-playbook --exec ./deploy.sh verify
+scripts/ttd-ansible-playbook --exec ./deploy.sh build
+SVC_REPLACE_LEGACY_V1=true SVC_RUN_SMOKE=true \
+  scripts/ttd-ansible-playbook --exec ./deploy.sh formal
+```
+
+Stopping and replacing the legacy `svc-api-1` container requires explicit approval before setting `SVC_REPLACE_LEGACY_V1=true`.
+
 ## TODO📝
 - [x] Release code
 - [x] Release pretrained models: [![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-SeedVC-blue)](https://huggingface.co/Plachta/Seed-VC)

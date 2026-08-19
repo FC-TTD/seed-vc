@@ -1,0 +1,3 @@
+services:
+  svc:
+    image: seed-vc/svc:build

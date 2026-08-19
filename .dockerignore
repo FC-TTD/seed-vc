@@ -1,0 +1,14 @@
+.git
+.gitignore
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+.venv
+.conda
+checkpoints
+cache
+reconstructed
+runs
+outputs
+*.log

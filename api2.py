@@ -22,7 +22,8 @@ logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 warnings.simplefilter("ignore")
-VC_ROOT = "/data/ttd/seed-vc/"
+VC_ROOT = os.environ.get("VC_ROOT", "/data/ttd/seed-vc/")
+MODEL_TIMEOUT_SECONDS = int(os.environ.get("MODEL_TIMEOUT_SECONDS", "7200"))
 os.environ["HF_HUB_CACHE"] = os.path.join(VC_ROOT, "./checkpoints/hf_cache")
 
 from seed_vc_wrapper import SeedVCWrapper
@@ -38,14 +39,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         return SeedVCWrapper()
     
     try:
-        # Default 2h timeout
-        vc_wrapper_manager = SmartModel(loader, timeout_seconds=7200)
+        vc_wrapper_manager = SmartModel(loader, timeout_seconds=MODEL_TIMEOUT_SECONDS)
     except Exception as e:
         logger.exception("SeedVCWrapper init failed")
         raise RuntimeError("SeedVCWrapper init failed") from e
     yield
     if vc_wrapper_manager:
         vc_wrapper_manager.stop()
+        vc_wrapper_manager.unload()
     vc_wrapper_manager = None
 
 def post_process_file(
@@ -89,7 +90,7 @@ def get_svc_voice(actor, voice):
         raise FileNotFoundError(f"Voice file not found: {vc_ref_file}")
     return vc_ref_file
 
-app = FastAPI(title="Seed-VC API", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="SVC V1 API", version="1.0.0", lifespan=lifespan)
 app.include_router(postprocess_router, prefix="/postprocess", tags=["postprocess"])
 setup_cuda_health(app)
 

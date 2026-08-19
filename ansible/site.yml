@@ -1,0 +1,200 @@
+---
+- name: Build the immutable SVC API image
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: docker_ci_cd
+      vars:
+        ci_project_name: seed-vc
+        ci_project_path: "{{ lookup('env', 'SVC_SOURCE_SNAPSHOT') }}"
+        ci_dockerfile_path: "{{ lookup('env', 'SVC_SOURCE_SNAPSHOT') }}/Dockerfile"
+        ci_compose_file_path: "{{ lookup('env', 'SVC_SOURCE_SNAPSHOT') }}/deploy/image.yaml"
+        ci_image_name: svc
+        ci_registry_url: registry.ttd
+        ci_build_host: ttd-nest
+        ci_publish_label_tag: false
+        pt_skip_cd: true
+
+- name: Deploy SVC V1 and V2 on the formal GPU host
+  hosts: svc_formal
+  gather_facts: false
+  become: true
+  vars:
+    source_snapshot: "{{ lookup('env', 'SVC_SOURCE_SNAPSHOT') }}"
+    source_commit: "{{ lookup('env', 'SVC_SOURCE_COMMIT') }}"
+    requested_image: "{{ lookup('env', 'SVC_IMAGE') }}"
+    svc_image: >-
+      {{ requested_image if requested_image | length > 0 else
+         hostvars['localhost']['ci_hash_image_name'] | default('') }}
+    remote_root: /opt/seed-vc
+    compose_file: "{{ remote_root }}/compose.yaml"
+    env_file: "{{ remote_root }}/.env"
+    replace_legacy_v1: "{{ lookup('env', 'SVC_REPLACE_LEGACY_V1') | default('false', true) | bool }}"
+    run_smoke: "{{ lookup('env', 'SVC_RUN_SMOKE') | default('false', true) | bool }}"
+  tasks:
+    - name: Require an immutable image and recorded source commit
+      ansible.builtin.assert:
+        that:
+          - source_commit | length == 40
+          - svc_image is match('^registry\\.ttd/seed-vc/svc:h-[0-9a-f]+$')
+        fail_msg: "Formal deployment requires a recorded commit and immutable registry.ttd/seed-vc/svc:h-* image."
+      tags: [prepare, deploy, verify, smoke]
+
+    - name: Inspect the legacy V1 container before replacement
+      ansible.builtin.command:
+        argv: [docker, inspect, svc-api-1, --format, "{{ '{{.Config.Image}} {{.Image}}' }}"]
+      register: legacy_v1_image
+      changed_when: false
+      failed_when: false
+      tags: [prepare]
+
+    - name: Inspect current formal containers before deployment
+      ansible.builtin.command:
+        argv: [docker, inspect, "{{ item }}", --format, "{{ '{{.Config.Image}} {{.Image}}' }}"]
+      loop: [svc-v1, svc-v2]
+      register: current_svc_images
+      changed_when: false
+      failed_when: false
+      tags: [prepare]
+
+    - name: Ensure formal project and persistent data directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ remote_root }}"
+        - /TTD-Data/seed-vc
+        - /TTD-Data/seed-vc/checkpoints
+        - /TTD-Data/seed-vc/cache
+        - "{{ remote_root }}/smoke"
+      tags: [prepare]
+
+    - name: Install the committed formal Compose definition
+      ansible.builtin.copy:
+        src: "{{ source_snapshot }}/compose.yaml"
+        dest: "{{ compose_file }}"
+        mode: "0644"
+      tags: [prepare]
+
+    - name: Install smoke audio inputs
+      ansible.builtin.copy:
+        src: "{{ source_snapshot }}/{{ item.src }}"
+        dest: "{{ remote_root }}/smoke/{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - { src: examples/source/yae_0.wav, dest: source.wav }
+        - { src: examples/reference/dingzhen_0.wav, dest: reference.wav }
+      tags: [prepare, smoke]
+
+    - name: Write formal deployment environment
+      ansible.builtin.copy:
+        dest: "{{ env_file }}"
+        mode: "0644"
+        content: |
+          SVC_IMAGE={{ svc_image }}
+          SVC_V1_GPU_ID={{ lookup('env', 'SVC_V1_GPU_ID') | default('2', true) }}
+          SVC_V2_GPU_ID={{ lookup('env', 'SVC_V2_GPU_ID') | default('0', true) }}
+          MODEL_TIMEOUT_SECONDS={{ lookup('env', 'MODEL_TIMEOUT_SECONDS') | default('7200', true) }}
+          APP_GIT_COMMIT={{ source_commit }}
+      tags: [prepare]
+
+    - name: Validate the formal Compose definition
+      ansible.builtin.command:
+        cmd: "docker compose --env-file {{ env_file }} -f {{ compose_file }} config --quiet"
+      changed_when: false
+      tags: [prepare, verify]
+
+    - name: Pull the immutable SVC image
+      ansible.builtin.command:
+        cmd: "docker compose --env-file {{ env_file }} -f {{ compose_file }} pull"
+      tags: [deploy]
+
+    - name: Start SVC V2 without changing the legacy V1 service
+      ansible.builtin.command:
+        cmd: "docker compose --env-file {{ env_file }} -f {{ compose_file }} up -d svc-v2"
+      tags: [deploy]
+
+    - name: Wait for the shared V2 route
+      ansible.builtin.uri:
+        url: http://seed-vc/v2/health
+        status_code: 200
+      register: svc_v2_health
+      retries: 24
+      delay: 5
+      until: svc_v2_health.status == 200
+      tags: [verify]
+
+    - name: Require explicit legacy V1 replacement approval
+      ansible.builtin.assert:
+        that: replace_legacy_v1
+        fail_msg: "Set SVC_REPLACE_LEGACY_V1=true only after explicit approval to stop and replace svc-api-1."
+      tags: [deploy]
+
+    - name: Replace legacy V1 with the formal SVC V1 container
+      block:
+        - name: Stop the legacy V1 container
+          ansible.builtin.command:
+            argv: [docker, stop, svc-api-1]
+
+        - name: Start formal SVC V1
+          ansible.builtin.command:
+            cmd: "docker compose --env-file {{ env_file }} -f {{ compose_file }} up -d svc-v1"
+
+        - name: Wait for the shared V1 route
+          ansible.builtin.uri:
+            url: http://seed-vc/v1/health
+            status_code: 200
+          register: svc_v1_health
+          retries: 24
+          delay: 5
+          until: svc_v1_health.status == 200
+      rescue:
+        - name: Restore the legacy V1 container after replacement failure
+          ansible.builtin.command:
+            argv: [docker, start, svc-api-1]
+        - name: Fail after restoring legacy V1
+          ansible.builtin.fail:
+            msg: "Formal SVC V1 replacement failed; svc-api-1 was restarted."
+      when: replace_legacy_v1
+      tags: [deploy]
+
+    - name: Run real SVC V2 conversion smoke
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl --fail --silent --show-error --max-time 900 \
+          -F src_file=@{{ remote_root }}/smoke/source.wav \
+          -F ref_file=@{{ remote_root }}/smoke/reference.wav \
+          -F steps=4 \
+          -F post_process=false \
+          http://seed-vc/v2/svc_file \
+          --output {{ remote_root }}/smoke/svc-v2.wav
+        test "$(stat -c %s {{ remote_root }}/smoke/svc-v2.wav)" -gt 1024
+        ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate \
+          -of default=noprint_wrappers=1 {{ remote_root }}/smoke/svc-v2.wav
+      args:
+        executable: /bin/bash
+      register: svc_v2_smoke
+      changed_when: true
+      when: run_smoke
+      tags: [smoke]
+
+    - name: Run real SVC V1 conversion smoke
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl --fail --silent --show-error --max-time 900 \
+          -F src_file=@{{ remote_root }}/smoke/source.wav \
+          -F ref_file=@{{ remote_root }}/smoke/reference.wav \
+          -F steps=4 \
+          -F post_process=false \
+          http://seed-vc/v1/svc_file \
+          --output {{ remote_root }}/smoke/svc-v1.wav
+        test "$(stat -c %s {{ remote_root }}/smoke/svc-v1.wav)" -gt 1024
+        ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate \
+          -of default=noprint_wrappers=1 {{ remote_root }}/smoke/svc-v1.wav
+      args:
+        executable: /bin/bash
+      register: svc_v1_smoke
+      changed_when: true
+      when: run_smoke and replace_legacy_v1
+      tags: [smoke]

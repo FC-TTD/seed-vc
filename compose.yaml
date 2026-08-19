@@ -1,59 +1,60 @@
+x-svc-common: &svc-common
+  image: ${SVC_IMAGE:?set SVC_IMAGE to an immutable tag or digest}
+  environment: &svc-environment
+    LC_ALL: C.UTF-8
+    TZ: Asia/Shanghai
+    VC_ROOT: /data/ttd/seed-vc
+    MODEL_TIMEOUT_SECONDS: ${MODEL_TIMEOUT_SECONDS:-7200}
+  volumes:
+    - /TTD-Data/seed-vc:/data/ttd/seed-vc
+    - /TTD-Data/seed-vc/checkpoints:/app/checkpoints
+    - /TTD-Data/seed-vc/cache:/root/.cache
+  working_dir: /app
+  shm_size: 16G
+  restart: always
+  networks:
+    - caddy
+
 services:
-  svc-api-1:
-    container_name: 'svc-api-1'
-    build: .
-    image: svc-api:latest
-    environment:
-      - LC_ALL=C.UTF-8
-      - TZ=Asia/Shanghai
-    volumes:
-      - /TTD-Data/seed-vc:/data/ttd/seed-vc
-      - /TTD-Data/seed-vc/checkpoints:/app/checkpoints
-      - /TTD-Data/seed-vc/cache:/root/.cache
-    working_dir: /app
-    shm_size: 16G
-    stdin_open: true
-    tty: true
-    restart: always
+  svc-v1:
+    <<: *svc-common
+    container_name: svc-v1
+    command: ["python", "api2.py"]
     labels:
       caddy_network: caddy
-      caddy: http://svc-api
-      caddy.reverse_proxy: "{{upstreams 7856}}"
-    ports:
-      - "7000:7856"
-    networks:
-      - caddy
+      caddy_0: http://svc-api
+      caddy_0.reverse_proxy: "{{upstreams 7856}}"
+      caddy_1: http://seed-vc
+      "caddy_1.@svc_v1.path": "/v1 /v1/*"
+      caddy_1.route: "@svc_v1"
+      caddy_1.route.0_uri: "strip_prefix /v1"
+      caddy_1.route.1_reverse_proxy: "{{upstreams 7856}}"
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: [ "0" ]
-              capabilities: [ gpu ]
-  # svc-api-2:
-  #   container_name: 'svc-api-2'
-  #   extends: svc-api-1
-  #   ports: !override
-  #     - "7001:7856"
-  #   deploy: !override
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             device_ids: [ "1" ]
-  #             capabilities: [ gpu ]
-  # svc-api-3:
-  #   container_name: 'svc-api-3'
-  #   extends: svc-api-1
-  #   ports: !override
-  #     - "7002:7856"
-  #   deploy: !override
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             device_ids: [ "2" ]
-  #             capabilities: [ gpu ]
+              device_ids: ["${SVC_V1_GPU_ID:-2}"]
+              capabilities: [gpu]
+
+  svc-v2:
+    <<: *svc-common
+    container_name: svc-v2
+    command: ["python", "api_v2.py"]
+    labels:
+      caddy_network: caddy
+      caddy: http://seed-vc
+      "caddy.@svc_v2.path": "/v2 /v2/*"
+      caddy.route: "@svc_v2"
+      caddy.route.0_uri: "strip_prefix /v2"
+      caddy.route.1_reverse_proxy: "{{upstreams 7856}}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${SVC_V2_GPU_ID:-0}"]
+              capabilities: [gpu]
 
 networks:
   caddy:
