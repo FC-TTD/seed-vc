@@ -57,17 +57,33 @@
       failed_when: false
       tags: [prepare]
 
-    - name: Ensure formal project and persistent data directories exist
+    - name: Ensure formal project directories exist
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: "0755"
       loop:
         - "{{ remote_root }}"
+        - "{{ remote_root }}/smoke"
+      tags: [prepare]
+
+    - name: Inspect persistent NAS directories without changing ownership or mode
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
         - /TTD-Data/seed-vc
         - /TTD-Data/seed-vc/checkpoints
         - /TTD-Data/seed-vc/cache
-        - "{{ remote_root }}/smoke"
+      register: svc_data_directories
+      tags: [prepare]
+
+    - name: Require the persistent NAS directories
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required persistent directory {{ item.item }} is missing or is not a directory."
+      loop: "{{ svc_data_directories.results }}"
       tags: [prepare]
 
     - name: Install the committed formal Compose definition
