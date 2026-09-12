@@ -1,6 +1,6 @@
 # Move only SVC V1 to worker
 
-Status: prepared for review; not committed or deployed by this preparation step.
+Status: executed on 2026-09-12; see [the acceptance record](v1-worker-acceptance-2026-09-12.md).
 The runtime image, CUDA inference code, sampling defaults, lifecycle timeout,
 shared memory setting and mounts are preserved. No CPU/offload, memory limit,
 GPU guard, algorithm or model optimization is part of this migration.
