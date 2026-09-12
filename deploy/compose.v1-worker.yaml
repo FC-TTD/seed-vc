@@ -32,7 +32,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["GPU-aee06b60-5da4-ae60-2775-88f094ffeab7"]
+              device_ids: ["2"]
               capabilities: [gpu]
 networks:
   caddy:
