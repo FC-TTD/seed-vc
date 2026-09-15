@@ -31,6 +31,15 @@ def create_app(runtime=None):
 
     @app.middleware("http")
     async def canonical_ui(request, call_next):
+        # Gradio 5.23 get_api_call_path uses X-Forwarded-Host as a URL and loses
+        # its queue path. CPU entry already preserves Host, so omit this redundant
+        # header for UI routes without patching or upgrading native Gradio.
+        if request.url.path == "/ui" or request.url.path.startswith("/ui/"):
+            request.scope["headers"] = [
+                (k, v)
+                for k, v in request.scope["headers"]
+                if k.lower() != b"x-forwarded-host"
+            ]
         if request.url.hostname == "seed-vc" and (
             request.url.path == "/ui" or request.url.path.startswith("/ui/")
         ):
