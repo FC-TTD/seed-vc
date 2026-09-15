@@ -17,7 +17,7 @@ def build_ui(runtime):
         auto_f0_adjust=False,
         pitch_shift=0,
     ):
-        for chunk, audio in runtime.get().convert_voice(
+        generator = runtime.get().convert_voice(
             source_audio_path,
             target_audio_path,
             int(diffusion_steps),
@@ -26,12 +26,16 @@ def build_ui(runtime):
             bool(f0_condition),
             bool(auto_f0_adjust),
             int(pitch_shift),
-        ):
-            if audio is not None:
-                sr, wave = audio
-                processed, _ = sf.read(post_process_file(wave, sr), dtype="float32")
-                audio = (sr, processed)
-            yield chunk, audio
+        )
+        try:
+            for chunk, audio in generator:
+                if audio is not None:
+                    sr, wave = audio
+                    processed, _ = sf.read(post_process_file(wave, sr), dtype="float32")
+                    audio = (sr, processed)
+                yield chunk, audio
+        finally:
+            generator.close()
 
     # Set up Gradio interface
     description = (
