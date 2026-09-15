@@ -1,13 +1,20 @@
 """One model instance shared by the unchanged API contract and copied V1 UI."""
 
+import os
 import json
 import sys
 from fastapi.responses import RedirectResponse, JSONResponse
 from ttd_model_runtime.home_probe import build_home_payload
 from ttd_model_runtime import Runtime
 from ttd_model_runtime.integrations.fastapi import attach
-from .adapter import load_model, cleanup, completion
-from .api import build_api
+if os.getenv("HUB_MODEL_VARIANT", "v1") == "v2":
+    from .adapter_v2 import load_model, cleanup, completion
+    from .api_v2 import build_api
+    UI_ORIGIN = "http://svc-v2-api"
+else:
+    from .adapter import load_model, cleanup, completion
+    from .api import build_api
+    UI_ORIGIN = "http://svc-api"
 
 
 def create_app(runtime=None):
@@ -44,14 +51,17 @@ def create_app(runtime=None):
             request.url.path == "/ui" or request.url.path.startswith("/ui/")
         ):
             return RedirectResponse(
-                "http://svc-api"
+                UI_ORIGIN
                 + request.url.path
                 + ("?" + request.url.query if request.url.query else "")
             )
         return await call_next(request)
 
     def ui():
-        from .ui import build_ui
+        if os.getenv("HUB_MODEL_VARIANT", "v1") == "v2":
+            from .ui_v2 import build_ui
+        else:
+            from .ui import build_ui
 
         return build_ui(runtime)
 

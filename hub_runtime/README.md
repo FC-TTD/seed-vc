@@ -52,3 +52,18 @@ Gradio5.23 dropping the queue path. Native dependencies are unchanged. Native
 streaming uses HLS; the verification client checks the browser's stream endpoint
 and full-file endpoint separately because Gradio5.23 Client's generic file
 downloader does not handle the HLS playlist correctly.
+
+## SVC V2
+
+`HUB_MODEL_VARIANT=v2 python -m hub_runtime` runs a separate managed V2 instance.
+`api_v2.py` supplies the Form contract and tuned defaults; `app.py:create_v2_interface`
+is copied in `ui_v2.py` with its eleven native controls. The native CUDA/FP16 AR cache
+setup and framework placement remain unchanged. Both API and UI hold the runtime
+activity and native cache lock until the streaming generator actually completes.
+
+Deploy with `compose.hub-v2.yml` and `compose.hub-v2-business.yml`. Existing
+`http://seed-vc/v2` stays valid; `http://svc-v2-api` is the canonical pool/API origin
+and `/ui/` serves the copied native UI. The previous `/unload` endpoint returns 409
+with the Hub operator drain instruction; lifecycle writes use the authenticated
+pool ledger, never a second SmartModel manager. Native checkpoint/cache mounts
+remain read-only as in the previous V2 deployment.

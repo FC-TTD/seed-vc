@@ -11,4 +11,5 @@ LABEL org.opencontainers.image.source="https://github.com/FC-TTD/seed-vc" \
       org.opencontainers.image.revision="${SOURCE_REV}"
 ENV TTD_WEBHOOK_URL="" GRADIO_ANALYTICS_ENABLED="False"
 RUN python -m hub_runtime describe > /app/hub_runtime/contract.json
+RUN HUB_MODEL_VARIANT=v2 python -m hub_runtime describe > /app/hub_runtime/contract-v2.json
 CMD ["python", "-m", "hub_runtime"]

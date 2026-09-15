@@ -1,0 +1,55 @@
+name: svc-v2-hub
+services:
+  runtime:
+    image: ${SVC_IMAGE:?fixed model image required}
+    container_name: svc-v2-hub-runtime
+    restart: 'no'
+    command: [python, -m, hub_runtime]
+    environment:
+      HUB_MODEL_VARIANT: v2
+      VC_ROOT: /data/ttd/seed-vc
+      HUB_SERVICE_ID: svc-v2
+      HUB_RUNTIME_VERSION: ${SVC_RUNTIME_VERSION:?}
+      HUB_RUNTIME_ACTOR_ID: ${SVC_ACTOR_ID:?}
+      HUB_RUNTIME_TOKEN: ${HUB_SVC_V2_RUNTIME_TOKEN:?}
+      HUB_RUNTIME_STATE_DIR: /var/lib/hub-runtime/actors/${SVC_ACTOR_ID:?}
+      HUB_NODE_URL: http://host.docker.internal:13912
+      HUB_CONTROL_HOST: '0.0.0.0'
+      HUB_CONTROL_PORT: '18083'
+      GRADIO_ANALYTICS_ENABLED: 'False'
+      TTD_WEBHOOK_URL: ''
+    extra_hosts: ['host.docker.internal:host-gateway']
+    ports: ['127.0.0.1:13915:18083']
+    volumes:
+      - /TTD-Data/seed-vc-p5000-bench:/data/ttd/seed-vc
+      - /TTD-Data/seed-vc/checkpoints:/data/ttd/seed-vc/checkpoints:ro
+      - /TTD-Data/seed-vc/checkpoints:/app/checkpoints:ro
+      - /TTD-Data/seed-vc/cache:/root/.cache:ro
+      - /opt/ttd-hub-v2/runtime-state/svc-v2:/var/lib/hub-runtime
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['${GPU_DEVICE:?ordinal or UUID}']
+              capabilities: [gpu]
+    shm_size: 2g
+    networks: [model]
+    labels:
+      ttd.hub.instance: svc-v2
+      ttd.hub.release: ${SVC_RELEASE:?}
+  entry:
+    image: ${HUB_IMAGE:?fixed Hub image required}
+    container_name: svc-v2-hub-entry
+    restart: unless-stopped
+    entrypoint: [/usr/local/bin/model-entry]
+    command: [--upstream, 'http://runtime:7856', --listen, ':8080']
+    networks: [model, caddy]
+    labels:
+      ttd.hub.release: ${SVC_RELEASE:?}
+      caddy_ingress_network: caddy
+      caddy: http://svc-v2-hub
+      caddy.reverse_proxy: '{{upstreams 8080}}'
+networks:
+  model: {}
+  caddy: {external: true}
