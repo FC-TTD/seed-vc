@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE
+ARG HUB_IMAGE
+FROM ${HUB_IMAGE} AS runtime_package
+FROM ${BASE_IMAGE}
+COPY --from=runtime_package /opt/hub-runtime-wheel /tmp/hub-runtime-wheel
+RUN uv pip install --system --no-deps --no-cache /tmp/hub-runtime-wheel/*.whl
+COPY hub_runtime /app/hub_runtime
+ARG SOURCE_REV
+LABEL org.opencontainers.image.source="https://github.com/FC-TTD/seed-vc" \
+      org.opencontainers.image.revision="${SOURCE_REV}"
+ENV TTD_WEBHOOK_URL="" GRADIO_ANALYTICS_ENABLED="False"
+RUN python -m hub_runtime describe > /app/hub_runtime/contract.json
+CMD ["python", "-m", "hub_runtime"]

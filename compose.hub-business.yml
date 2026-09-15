@@ -1,0 +1,12 @@
+services:
+  entry:
+    labels: !override
+      ttd.hub.release: ${SVC_RELEASE:?}
+      caddy_ingress_network: caddy
+      caddy_0: http://svc-api
+      caddy_0.reverse_proxy: '{{upstreams 8080}}'
+      caddy_1: http://seed-vc
+      caddy_1.@svc_v1.path: /v1 /v1/*
+      caddy_1.route: '@svc_v1'
+      caddy_1.route.0_uri: strip_prefix /v1
+      caddy_1.route.1_reverse_proxy: '{{upstreams 8080}}'
