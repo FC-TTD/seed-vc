@@ -29,3 +29,26 @@ First deployment targets worker only. Use a conservative single-card reservation
 for initial inference evidence, then record observed usage without automatically
 reducing its budget or changing official CPU/GPU behavior. Local tests use real
 FastAPI/Gradio/audio with fake inference; GPU acceptance is recorded separately.
+
+## Deployed verification (2026-09-15)
+
+V1 is now managed on worker GPU2. Existing `svc-api` and `seed-vc/v1` API aliases
+are served by the new CPU entry, with native UI at `http://svc-api/ui/`. Original
+V1 was gracefully stopped and its Compose service retired; V2 was not changed.
+
+Real normal (22050Hz) and F0 (44100Hz, pitch shift) conversion, CPU presets,
+unload/reload, Gradio HLS playlist/segment and full WAV download all passed.
+Production Gateway `svc` passed successful calls, maintenance rejection, stale
+grant rejection/recovery and PostgreSQL usage verification. Index regression
+through the same Gateway also passed.
+
+The current reservation is 19GiB plus the existing 2GiB safety margin. Initial
+20GiB blocked reload after accounting for residual CUDA context and existing
+external usage; the reservation was corrected through actor retirement and
+replacement, without changing an active lease or model placement/precision.
+
+The HTTP adapter omits redundant X-Forwarded-Host on UI routes to work around
+Gradio5.23 dropping the queue path. Native dependencies are unchanged. Native
+streaming uses HLS; the verification client checks the browser's stream endpoint
+and full-file endpoint separately because Gradio5.23 Client's generic file
+downloader does not handle the HLS playlist correctly.
