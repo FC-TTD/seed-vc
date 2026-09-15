@@ -2,6 +2,7 @@ import ast
 import io
 from pathlib import Path
 import tempfile
+import time
 import unittest
 from uuid import uuid4
 
@@ -119,6 +120,13 @@ class Contracts(unittest.TestCase):
                 self.assertEqual(model.calls[0][1]["diffusion_steps"], 25)
                 self.assertTrue(model.calls[0][1]["f0_condition"])
                 self.assertEqual(model.completed, 1)
+                # Activity terminal is durable before return; delivery can be
+                # owned by the concurrent sender thread for this brief interval.
+                self.assertEqual(runtime.status()["active"], 0)
+                deadline = time.monotonic() + 2
+                while not node.finishes and time.monotonic() < deadline:
+                    runtime.flush()
+                    time.sleep(0.01)
                 self.assertEqual(node.finishes, ["succeeded"])
                 expected = post_process_file(
                     np.sin(np.arange(22050) * 2 * np.pi * 220 / 22050) * 0.1, 22050
@@ -191,6 +199,13 @@ class Contracts(unittest.TestCase):
                 )
                 self.assertIn("event: complete", result.text, result.text)
                 self.assertEqual(model.completed, 1)
+                # Activity terminal is durable before return; delivery can be
+                # owned by the concurrent sender thread for this brief interval.
+                self.assertEqual(runtime.status()["active"], 0)
+                deadline = time.monotonic() + 2
+                while not node.finishes and time.monotonic() < deadline:
+                    runtime.flush()
+                    time.sleep(0.01)
                 self.assertEqual(node.finishes, ["succeeded"])
 
     def test_no_old_plugin_imports_and_no_model_import_during_describe(self):

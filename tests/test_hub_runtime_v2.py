@@ -4,6 +4,7 @@ import ast
 import io
 from pathlib import Path
 import tempfile
+import time
 import unittest
 from uuid import uuid4
 
@@ -115,6 +116,13 @@ class Contracts(unittest.TestCase):
                 self.assertTrue(model.calls[0][1]["convert_style"])
                 self.assertEqual(model.calls[0][1]["intelligebility_cfg_rate"], 0.4)
                 self.assertEqual(model.completed, 1)
+                # Activity terminal is durable before return; delivery can be
+                # owned by the concurrent sender thread for this brief interval.
+                self.assertEqual(runtime.status()["active"], 0)
+                deadline = time.monotonic() + 2
+                while not node.finishes and time.monotonic() < deadline:
+                    runtime.flush()
+                    time.sleep(0.01)
                 self.assertEqual(node.finishes, ["succeeded"])
                 wave, rate = sf.read(io.BytesIO(response.content))
                 self.assertEqual(rate,22050)
@@ -182,6 +190,13 @@ class Contracts(unittest.TestCase):
                 )
                 self.assertIn("event: complete", result.text, result.text)
                 self.assertEqual(model.completed, 1)
+                # Activity terminal is durable before return; delivery can be
+                # owned by the concurrent sender thread for this brief interval.
+                self.assertEqual(runtime.status()["active"], 0)
+                deadline = time.monotonic() + 2
+                while not node.finishes and time.monotonic() < deadline:
+                    runtime.flush()
+                    time.sleep(0.01)
                 self.assertEqual(node.finishes, ["succeeded"])
 
     def test_no_old_plugin_imports_and_no_model_import_during_describe(self):
