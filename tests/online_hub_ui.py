@@ -4,14 +4,26 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import io
+from urllib import request,parse
 import soundfile as sf
 from gradio_client import Client,handle_file
 
 p=argparse.ArgumentParser();p.add_argument('--url',required=True);p.add_argument('--source',required=True);p.add_argument('--reference',required=True);p.add_argument('--output',required=True);a=p.parse_args()
-client=Client(a.url,verbose=False)
+client=Client(a.url,verbose=False,download_files=False)
 result=client.predict(handle_file(a.source),handle_file(a.reference),12,1.0,.7,False,False,0,api_name='/convert_voice')
-final=result[1]
-if isinstance(final,dict):final=final.get('path') or final.get('value')
-data,rate=sf.read(final);assert len(data)>0 and rate==22050
-out=Path(a.output);shutil.copyfile(final,out)
-print(json.dumps({'status':'passed','url':a.url,'sample_rate':rate,'duration':len(data)/rate,'bytes':out.stat().st_size,'sha256':hashlib.sha256(out.read_bytes()).hexdigest()}))
+opener=request.build_opener(request.ProxyHandler({}))
+stream,final=result
+# Gradio 5.23 Client's generic downloader incorrectly treats HLS playlists as
+# regular file endpoints. Fetch the actual stream URL used by its browser UI.
+stream_path=stream['path'] if isinstance(stream,dict) else stream
+stream_url=a.url.rstrip('/')+'/gradio_api/stream/'+stream_path
+with opener.open(stream_url,timeout=20) as r:playlist=r.read().decode()
+assert '#EXTM3U' in playlist and '#EXT-X-ENDLIST' in playlist
+segment=next(line for line in playlist.splitlines() if line and not line.startswith('#'))
+with opener.open(parse.urljoin(stream_url,segment),timeout=20) as r:assert len(r.read())>0
+file_url=final['url'] if isinstance(final,dict) else a.url.rstrip('/')+'/gradio_api/file='+final
+with opener.open(file_url,timeout=20) as r:body=r.read()
+data,rate=sf.read(io.BytesIO(body));assert len(data)>0 and rate==22050
+out=Path(a.output);out.write_bytes(body)
+print(json.dumps({'status':'passed','url':a.url,'stream_playlist':True,'stream_segment':True,'sample_rate':rate,'duration':len(data)/rate,'bytes':out.stat().st_size,'sha256':hashlib.sha256(out.read_bytes()).hexdigest()}))
