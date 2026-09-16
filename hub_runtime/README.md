@@ -70,3 +70,6 @@ remain read-only as in the previous V2 deployment.
 
 
 V1 concurrent execution: its DiT cache is explicitly disabled, so new config-local mel/window dictionaries and short RMVPE initialization guards replace the whole-generator inference lock. Shared weights/dtype/native algorithms remain unchanged. V2 retains its original exclusive AR cache ownership. Real V1 concurrent GPU output/peaks are validated separately from CPU contract tests.
+
+
+2026-09-16 concurrency acceptance: shared SDK multiplexing is deployed. V1 four-client throughput improved about14% for the recorded20.14s input; ordinary/F0 concurrent output passed and V1 budget is now8.5GiB. V2 retains native AR cache serialization. Healthy residency is retained after completion, without an idle TTL. Full evidence is in Hub `docs/proposals/model-compute-pool/runtime-concurrency-2026-09-16.md`.
