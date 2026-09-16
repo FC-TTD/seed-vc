@@ -67,3 +67,6 @@ and `/ui/` serves the copied native UI. The previous `/unload` endpoint returns 
 with the Hub operator drain instruction; lifecycle writes use the authenticated
 pool ledger, never a second SmartModel manager. Native checkpoint/cache mounts
 remain read-only as in the previous V2 deployment.
+
+
+V1 concurrent execution: its DiT cache is explicitly disabled, so new config-local mel/window dictionaries and short RMVPE initialization guards replace the whole-generator inference lock. Shared weights/dtype/native algorithms remain unchanged. V2 retains its original exclusive AR cache ownership. Real V1 concurrent GPU output/peaks are validated separately from CPU contract tests.

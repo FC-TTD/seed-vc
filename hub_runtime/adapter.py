@@ -2,8 +2,7 @@
 
 import gc
 import os
-import threading
-from functools import wraps
+from .concurrency_v1 import enable_native_concurrency
 
 
 def load_model():
@@ -11,19 +10,7 @@ def load_model():
     os.environ["HF_HUB_CACHE"] = os.path.join(root, "checkpoints/hf_cache")
     from seed_vc_wrapper import SeedVCWrapper
 
-    model = SeedVCWrapper()
-    original = model.convert_voice
-    lock = threading.RLock()
-
-    @wraps(original)
-    def convert(*args, **kwargs):
-        # The native models reuse attention caches; hold ownership through the
-        # generator's real completion, including the last yielded audio buffer.
-        with lock:
-            yield from original(*args, **kwargs)
-
-    model.convert_voice = convert
-    return model
+    return enable_native_concurrency(SeedVCWrapper())
 
 
 def final_audio(generator):

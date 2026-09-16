@@ -150,4 +150,5 @@ def build_ui(runtime):
         title="Seed Voice Conversion V1 (Voice & Singing Voice Conversion)",
         examples=examples,
         cache_examples=False,
+        concurrency_limit=None,
     )
