@@ -2,7 +2,7 @@ services:
   svc-api-1:
     container_name: 'svc-api-1'
     build: .
-    image: svc-api:latest
+    image: registry.ttd/svc-api:latest
     environment:
       - LC_ALL=C.UTF-8
       - TZ=Asia/Shanghai
@@ -28,7 +28,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: [ "0" ]
+              device_ids: [ "2" ]
               capabilities: [ gpu ]
   # svc-api-2:
   #   container_name: 'svc-api-2'

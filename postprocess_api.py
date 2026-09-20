@@ -20,7 +20,17 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ttd_fastapi_utils import postprocess
-from ttd_fastapi_utils.preset import apply_preset, list_presets, preset_map, preset_metadata
+from ttd_fastapi_utils.preset import apply_preset, list_presets, preset_map
+
+
+def _fallback_preset_metadata() -> dict:
+    return {name: {"summary": name} for name in list_presets()}
+
+
+try:
+    from ttd_fastapi_utils.preset import preset_metadata
+except ImportError:
+    preset_metadata = _fallback_preset_metadata
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -461,9 +471,68 @@ def _process_preset_request(
         media_type="audio/wav",
         headers={"Content-Disposition": f"attachment; filename={preset_name}_output.wav"},
     )
+def _normalize_loudness_only(
+    wav: np.ndarray,
+    sr: int,
+    *,
+    target_loudness: float,
+    enable_limiter: bool,
+    limiter_threshold: float,
+) -> np.ndarray:
+    """Apply loudness normalization without any preset EQ/saturation/delay/reverb."""
+    normalized, _ = postprocess.loudnorm(
+        wav,
+        sr,
+        target_loudness=float(target_loudness),
+        threshold=float(limiter_threshold if enable_limiter else 1.0),
+    )
+    return normalized
+
+
+def _process_loudness_request(
+    file: UploadFile,
+    *,
+    target_loudness: float,
+    enable_limiter: bool,
+    limiter_threshold: float,
+) -> StreamingResponse:
+    _validate_audio_file(file)
+    try:
+        wav, sr = _load_audio(file)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to load audio: {str(e)}")
+
+    processed = _normalize_loudness_only(
+        wav,
+        sr,
+        target_loudness=target_loudness,
+        enable_limiter=enable_limiter,
+        limiter_threshold=limiter_threshold,
+    )
+    output = _save_audio(processed, sr)
+    return StreamingResponse(
+        output,
+        media_type="audio/wav",
+        headers={"Content-Disposition": "attachment; filename=loudness_normalized.wav"},
+    )
 
 
 # ============== API Endpoints ==============
+@router.post("/normalize-loudness")
+async def normalize_loudness(
+    file: UploadFile = File(..., description="Input audio file (WAV/MP3/FLAC/OGG)"),
+    target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
+    lufs: float | None = Form(default=None, ge=-40.0, le=-10.0),
+    enable_limiter: bool = Form(default=True),
+    limiter_threshold: float = Form(default=0.98, ge=0.5, le=1.0),
+):
+    """Normalize loudness only, without preset effects or EQ."""
+    return _process_loudness_request(
+        file,
+        target_loudness=lufs if lufs is not None else target_loudness,
+        enable_limiter=enable_limiter,
+        limiter_threshold=limiter_threshold,
+    )
 
 
 @router.get("/presets", response_model=PresetListResponse)

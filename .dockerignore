@@ -1,0 +1,20 @@
+# Local environments and caches
+.conda/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+*.pyc
+
+# Git metadata is not needed in the image
+.git/
+.gitignore
+
+# Runtime/model data is mounted by compose at runtime
+checkpoints/
+reconstructed/
+
+# Local/test outputs
+tests/__pycache__/
+*.log
