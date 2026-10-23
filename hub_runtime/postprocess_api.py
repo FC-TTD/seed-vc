@@ -14,6 +14,7 @@ import logging
 from typing import Annotated, Literal
 
 import numpy as np
+import pyloudnorm as pyln
 import soundfile as sf
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -592,6 +593,53 @@ def _process_preset_request(
 
 
 # ============== API Endpoints ==============
+
+
+@router.post("/normalize-loudness")
+def normalize_loudness(
+    file: UploadFile = File(..., description="Input audio file (WAV/MP3/FLAC/OGG)"),
+    target_loudness: float = Form(default=-23.0, ge=-40.0, le=-10.0),
+    lufs: float | None = Form(default=None, ge=-40.0, le=-10.0),
+    enable_limiter: bool = Form(default=True),
+    limiter_threshold: float = Form(default=0.98, ge=0.5, le=1.0),
+):
+    """CPU-only normalization with one common gain across mono/stereo channels.
+
+    Keep the legacy form contract, without any preset effects. The shared
+    voice postprocessor intentionally returns only channel one, so measure the
+    original channels here using its existing pyloudnorm dependency instead.
+    A synchronous endpoint keeps decoding/DSP off the ASGI event loop.
+    """
+    _validate_audio_file(file)
+    try:
+        wav, sr = _load_audio(file)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Failed to decode audio") from exc
+    if (wav.size == 0 or not np.isfinite(wav).all()
+            or wav.ndim not in (1, 2) or (wav.ndim == 2 and wav.shape[1] not in (1, 2))):
+        raise HTTPException(status_code=400, detail="Expected finite, nonempty mono or stereo audio")
+
+    # Pad only the meter input for clips shorter than its 400 ms analysis block.
+    # The returned signal retains its original frame count and sample rate.
+    meter_input = wav
+    padding = max(0, int(sr * .4) + 1 - len(wav))
+    if padding:
+        meter_input = np.pad(wav, (0, padding) if wav.ndim == 1 else ((0, padding), (0, 0)))
+    loudness = pyln.Meter(sr).integrated_loudness(meter_input)
+    target = lufs if lufs is not None else target_loudness
+    processed = wav
+    # Silence/below-gate audio has no finite integrated loudness; preserve it.
+    if np.isfinite(loudness):
+        processed = wav * 10 ** ((target - loudness) / 20)
+    # Preserve the legacy full-scale safety ceiling even with optional limiting off.
+    processed = postprocess.limiter(processed, limiter_threshold if enable_limiter else 1.0)
+    output = io.BytesIO()
+    sf.write(output, processed, sr, format="WAV", subtype="PCM_24")
+    output.seek(0)
+    return StreamingResponse(iter(lambda: output.read(1024 * 1024), b""), media_type="audio/wav", headers={
+        "Content-Disposition": "attachment; filename=loudness_normalized.wav",
+        "Content-Length": str(output.getbuffer().nbytes),
+    })
 
 
 @router.get("/presets", response_model=PresetListResponse)
