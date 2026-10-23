@@ -1,0 +1,9 @@
+# syntax=docker/dockerfile:1
+# Reuse the accepted runtime and its CPU audio libraries, CUDA and model weights.
+# BASE_IMAGE must be the immutable accepted runtime digest.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG SOURCE_REV
+COPY --link hub_runtime/postprocess_api.py /app/hub_runtime/postprocess_api.py
+LABEL org.opencontainers.image.source="https://github.com/FC-TTD/seed-vc" \
+      org.opencontainers.image.revision="${SOURCE_REV}"
